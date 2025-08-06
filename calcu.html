@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grow a Garden Recipes</title>
+  <style>
+    /* --- (Unchanged styles from your original) --- */
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 30px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #121212; color: #e0e0e0;
+    }
+    h2 {
+      text-align: center; color: #90ee90;
+      margin-bottom: 20px; font-weight: 700;
+    }
+    #controls {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px;
+    }
+    #searchInput, #rarityFilter {
+      padding: 10px 14px;
+      background: #1e1e1e; border: none; border-radius: 6px;
+      color: #fff; font-size: 1rem;
+    }
+    #searchInput::placeholder { color: #888; }
+    #searchInput:focus, #rarityFilter:focus {
+      outline: none; background: #333;
+      box-shadow: inset 0 0 8px #60c060;
+    }
+    #recipeTable {
+      width: 100%; max-width: 960px;
+      margin: 0 auto; border-collapse: collapse;
+      background: #1e1e1e; border: 1px solid #333;
+    }
+    th, td {
+      padding: 12px 16px; border-bottom: 1px solid #333;
+      vertical-align: top; word-wrap: break-word;
+    }
+    th {
+      background: #2a2a2a; color: #90ee90;
+      cursor: pointer; user-select: none; text-align: left; position: relative;
+    }
+    th.sort-asc::after, th.sort-desc::after {
+      content: '';
+      position: absolute; right: 10px;
+      border: 6px solid transparent;
+    }
+    th.sort-asc::after { border-bottom-color: #90ee90; }
+    th.sort-desc::after { border-top-color: #90ee90; }
+    tr:hover { background: #2d2d2d; }
+    .dish { font-weight: bold; color: #a0f0a0; }
+    .rarity { color: #9acd32; }
+    strong { color: #b0ffb0; }
+    .copy-btn {
+      margin-left: 10px;
+      background: #333; color: #eee; border: none;
+      padding: 2px 6px; border-radius: 4px; cursor: pointer;
+    }
+    .copy-btn:hover { background: #444; }
+    .favorite { cursor: pointer; color: #ffd700; margin-right: 5px; }
+    .favorite.active { color: #ff0; }
+    #groupToggle, #printBtn {
+      padding: 6px 10px;
+      border: none; border-radius: 5px;
+      background: #2a2a2a; color: #90ee90; cursor: pointer;
+    }
+    #groupToggle:hover, #printBtn:hover {
+      background: #333;
+    }
+    .highlight {
+      background: #333; color: #60ff60; font-weight: bold;
+    }
+    @media (max-width:700px){
+      table, th, td { font-size:0.9rem; }
+      #controls { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🌱 Grow a Garden Event – Recipes</h2>
+
+  <div id="controls">
+    <input type="text" id="searchInput" placeholder="Search recipes…" aria-label="Search Recipes"/>
+    <select id="rarityFilter">
+      <option value="">All Rarities</option>
+      <option value="Prismatic">Prismatic</option>
+      <option value="Divine">Divine</option>
+      <option value="Mythical">Mythical</option>
+      <option value="Legendary">Legendary</option>
+      <option value="Rare">Rare</option>
+      <option value="Uncommon">Uncommon</option>
+    </select>
+    <button id="groupToggle">Group by Dish: OFF</button>
+    <button id="printBtn">🖨️ Print View</button>
+  </div>
+
+  <table id="recipeTable">
+    <thead>
+      <tr>
+        <th data-column="dish">Dish</th>
+        <th data-column="rarity">Rarity</th>
+        <th data-column="ingredients">Ingredients</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Modal for details -->
+  <div id="modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#000000cc; color:#fff; justify-content:center; align-items:center; z-index:1000;">
+    <div style="background:#1e1e1e; padding:20px; border-radius:8px; max-width:400px; text-align:center;">
+      <h3 id="modalTitle"></h3>
+      <p id="modalContent"></p>
+      <button onclick="document.getElementById('modal').style.display='none'" style="margin-top:10px;">Close</button>
+    </div>
+  </div>
+
+  <script>
+   const recipes = [
+  { dish: 'Cake', rarity: 'Prismatic', ingredients: '3x Bone Blossom, 1x Kiwi, 1x Banana' },
+  { dish: 'Cake', rarity: 'Divine', ingredients: '4x Sugar Apple, 1x Corn or 4x Elder Strawberry, 1x Corn' },
+  { dish: 'Cake', rarity: 'Mythical', ingredients: '2x Sugar Apple, 2x Corn' },
+  { dish: 'Cake', rarity: 'Legendary', ingredients: '2x Kiwi, 2x Banana' },
+  { dish: 'Cake', rarity: 'Rare', ingredients: '1x Blueberry, 1x Grape, 1x Apple, 1x Corn or 2x Banana, 2x Strawberry, 1x Pumpkin or 1x Ember Lily, 2x Peach' },
+  { dish: 'Cake', rarity: 'Uncommon', ingredients: '2x Corn, 2x Strawberry or 2x Blueberry, 1x Corn, 1x Tomato or 2x Corn, 2x Watermelon or 1x Pumpkin, 1x Giant Pinecone, 1x Corn, 1x Apple' },
+  { dish: 'Donut', rarity: '-', ingredients: '1x Corn, 1x Blueberry, 1x Strawberry or 1x Strawberry, 1x Tomato, 1x Apple or 1x Corn, 1x Watermelon' },
+  { dish: 'Donut', rarity: 'Divine', ingredients: '1x Sugar Apple, 2x Corn' },
+  { dish: 'Hotdog', rarity: '-', ingredients: '1x Pepper, 1x Corn/Banana' },
+  { dish: 'Hotdog', rarity: 'Mythical', ingredients: '1x Corn, 1x Ember Lily' },
+  { dish: 'Hotdog', rarity: 'Divine', ingredients: '4x Ember Lily, 1x Corn or 1x Ember Lily, 1x Corn' },
+  { dish: 'Hotdog', rarity: 'Prismatic', ingredients: '4x Bone Blossom, 1x Corn' },
+  { dish: 'Ice Cream', rarity: 'Legendary', ingredients: '2x Banana or 1x Pineapple, 1x Corn' },
+  { dish: 'Ice Cream', rarity: 'Mythical', ingredients: '1x Banana, 1x Sugar Apple or 1x Banana, 1x Pepper' },
+  { dish: 'Ice Cream', rarity: 'Uncommon', ingredients: '1x Blueberry, 1x Corn or 1x Strawberry, 1x Corn' },
+  { dish: 'Ice Cream', rarity: 'Divine', ingredients: '1x Sugar Apple, 1x SugarGlaze' },
+  { dish: 'Pizza', rarity: 'Divine', ingredients: '1x Sugar Apple, 1x Bone Blossom, 1x Corn' },
+  { dish: 'Pizza', rarity: 'Divine', ingredients: '1x Sugar Apple, 1x Pepper, 1x Banana' },
+  { dish: 'Pizza', rarity: 'Mythical', ingredients: '1x Tomato, 1x Corn, 1x Pepper, 2x Sugar Apple or 1x Giant Pinecone, 1x Corn, 1x Apple, 1x Mushroom, 1x Pepper or 1x Tomato, 1x Corn or 1x Pepper, 2x Sugar Apple' },
+  { dish: 'Pizza', rarity: 'Legendary', ingredients: '2x Corn, 2x Apple, 1x Pepper or 1x Cactus, 1x Corn, 1x Coconut' },
+  { dish: 'Pizza', rarity: 'Rare', ingredients: '1x Banana, 1x Tomato' },
+  { dish: 'Salad', rarity: '-', ingredients: '2x Tomato' },
+  { dish: 'Salad', rarity: 'Divine', ingredients: '4x Beanstalk, 1x Tomato' },
+  { dish: 'Salad', rarity: 'Divine', ingredients: '4x Sugar Apple, 1x Tomato or Sugar Apple x4, Tomato x1' },
+  { dish: 'Salad', rarity: 'Mythical', ingredients: '1x Giant Pinecone, 1x Tomato' },
+  { dish: 'Salad', rarity: 'Prismatic', ingredients: '4x Bone Blossom, 1x Tomato' },
+  { dish: 'Burger', rarity: 'Legendary', ingredients: '1x Pepper, 1x Corn, 1x Tomato' },
+  { dish: 'Burger', rarity: 'Mythical', ingredients: '2x Beanstalk, 1x Tomato, 1x Corn, 1x Pepper' },
+  { dish: 'Burger', rarity: 'Divine', ingredients: '1x Pepper, 1x Corn, 1x Tomato' },
+  { dish: 'Sandwich', rarity: '-', ingredients: '2x Giant Pinecone, 1x Tomato, 1x Corn' },
+  { dish: 'Soup', rarity: 'Common', ingredients: '1x Carrot' },
+  { dish: 'Sushi', rarity: '-', ingredients: '4x Bamboo, 1x Corn' },
+  { dish: 'Sushi', rarity: '-', ingredients: '3x Sugar Apples, 1x Bamboo, 1x Corn or 1x Pepper, 1x Coconut, 1x Bamboo, 1x Corn' },
+  { dish: 'Waffle', rarity: '-', ingredients: '1x Pumpkin, 1x Watermelon or 1x Pumpkin, 1x Sugar Apple or 1x Sugar Apple, 1x Watermelon' },
+  { dish: 'Waffle', rarity: 'Divine', ingredients: '1x Sugar Apple, 1x Coconut' },
+  { dish: 'Pie', rarity: '-', ingredients: '1x Pumpkin, 1x Apple' },
+  { dish: 'Pie', rarity: 'Legendary', ingredients: '1x Corn, 1x Coconut' },
+  { dish: 'Pie', rarity: 'Mythical', ingredients: '1x Corn, 3x Coconut, 1x Mango' },
+  { dish: 'Pie', rarity: 'Divine', ingredients: '1x Coconut, 1x Beanstalk or 1x Elder Strawberry, 1x Mango, 1x Giant Pinecone, 1x Coconut, 1x Beanstalk' }
+];
+
+
+
+    const tableBody = document.querySelector('#recipeTable tbody');
+    const searchInput = document.getElementById('searchInput');
+    const headers = document.querySelectorAll('th[data-column]');
+    const rarityFilter = document.getElementById('rarityFilter');
+    const groupToggle = document.getElementById('groupToggle');
+    const printBtn = document.getElementById('printBtn');
+    let groupByDish = false;
+    let currentSort = { column: null, direction: 'asc' };
+
+    function highlight(text, term) {
+      if (!term) return text;
+      const regex = new RegExp(`(${term})`, 'gi');
+      return text.replace(regex, '<span class="highlight">$1</span>');
+    }
+
+    function renderTable(data) {
+      tableBody.innerHTML = '';
+      if (groupByDish) {
+        const grouped = {};
+        data.forEach(r => {
+          if (!grouped[r.dish]) grouped[r.dish] = [];
+          grouped[r.dish].push(r);
+        });
+        for (const dish in grouped) {
+          const group = grouped[dish];
+          group.forEach(r => addRow(r));
+        }
+      } else {
+        data.forEach(r => addRow(r));
+      }
+    }
+
+    function addRow(r) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="dish">
+          <span class="favorite ${isFavorite(r) ? 'active' : ''}" onclick="toggleFavorite('${r.dish}', '${r.rarity}', \`${r.ingredients}\`)">★</span>
+          <span onclick="openModal('${r.dish}', '${r.rarity}', \`${r.ingredients}\`)">${r.dish}</span>
+        </td>
+        <td class="rarity">${r.rarity}</td>
+        <td>${highlight(r.ingredients, searchInput.value.trim())}
+          <button class="copy-btn" onclick="navigator.clipboard.writeText('${r.ingredients.replace(/'/g,"")}')">Copy</button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    }
+
+    function isFavorite(r) {
+      const key = `${r.dish}|${r.rarity}|${r.ingredients}`;
+      return localStorage.getItem('fav-' + key) === '1';
+    }
+
+    function toggleFavorite(dish, rarity, ingredients) {
+      const key = `${dish}|${rarity}|${ingredients}`;
+      const favKey = 'fav-' + key;
+      if (localStorage.getItem(favKey) === '1') {
+        localStorage.removeItem(favKey);
+      } else {
+        localStorage.setItem(favKey, '1');
+      }
+      applyFilterSort();
+    }
+
+    function openModal(dish, rarity, ingredients) {
+      document.getElementById('modalTitle').textContent = `${dish} (${rarity})`;
+      document.getElementById('modalContent').textContent = ingredients;
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function sortData(data) {
+      if (!currentSort.column) return data;
+      return data.slice().sort((a,b) => {
+        let x = a[currentSort.column], y = b[currentSort.column];
+        x = x.toLowerCase(); y = y.toLowerCase();
+        if (x < y) return currentSort.direction==='asc' ? -1 : 1;
+        if (x > y) return currentSort.direction==='asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function updateSortIcons() {
+      headers.forEach(th => {
+        th.classList.remove('sort-asc','sort-desc');
+        if (th.getAttribute('data-column') === currentSort.column) {
+          th.classList.add(`sort-${currentSort.direction}`);
+        }
+      });
+    }
+
+    headers.forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-column');
+        if (currentSort.column === col) {
+          currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          currentSort.column = col;
+          currentSort.direction = 'asc';
+        }
+        updateSortIcons();
+        applyFilterSort();
+      });
+    });
+
+    function applyFilterSort() {
+      const term = searchInput.value.trim().toLowerCase();
+      const rarity = rarityFilter.value;
+      let filtered = recipes.filter(r =>
+        (!rarity || r.rarity === rarity) &&
+        (r.dish.toLowerCase().includes(term) ||
+         r.rarity.toLowerCase().includes(term) ||
+         r.ingredients.toLowerCase().includes(term))
+      );
+      filtered = sortData(filtered);
+      renderTable(filtered);
+    }
+
+    searchInput.addEventListener('input', applyFilterSort);
+    rarityFilter.addEventListener('change', applyFilterSort);
+    groupToggle.addEventListener('click', () => {
+      groupByDish = !groupByDish;
+      groupToggle.textContent = `Group by Dish: ${groupByDish ? 'ON' : 'OFF'}`;
+      applyFilterSort();
+    });
+
+    printBtn.addEventListener('click', () => {
+      window.print();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyFilterSort();
+    });
+  </script>
+</body>
+</html>
